@@ -158,39 +158,83 @@ class BoardWidget(QWidget):
         sq: float,
         color: QColor,
     ) -> None:
+        df = chess.square_file(to_sq) - chess.square_file(from_sq)
+        dr = chess.square_rank(to_sq) - chess.square_rank(from_sq)
+        is_knight_move = (abs(df) == 2 and abs(dr) == 1) or (abs(df) == 1 and abs(dr) == 2)
+
         p1 = self._square_center(from_sq, ox, oy, sq)
         p2 = self._square_center(to_sq, ox, oy, sq)
-        dx = p2.x() - p1.x()
-        dy = p2.y() - p1.y()
-        dist = math.hypot(dx, dy)
-        if dist < 1e-3:
-            return
-
-        ux, uy = dx / dist, dy / dist
-        px, py = -uy, ux
-
-        start = QPointF(p1.x() + ux * (sq * 0.18), p1.y() + uy * (sq * 0.18))
-        tip = QPointF(p2.x() - ux * (sq * 0.08), p2.y() - uy * (sq * 0.08))
-        usable_len = math.hypot(tip.x() - start.x(), tip.y() - start.y())
-        if usable_len < 1e-3:
-            return
-
-        head_len = min(sq * 0.36, usable_len * 0.5)
         head_hw = sq * 0.22
         shaft_hw = sq * 0.085
-        neck = QPointF(tip.x() - ux * head_len, tip.y() - uy * head_len)
 
-        poly = QPolygonF(
-            [
-                QPointF(start.x() + px * shaft_hw, start.y() + py * shaft_hw),
-                QPointF(neck.x() + px * shaft_hw, neck.y() + py * shaft_hw),
-                QPointF(neck.x() + px * head_hw, neck.y() + py * head_hw),
-                tip,
-                QPointF(neck.x() - px * head_hw, neck.y() - py * head_hw),
-                QPointF(neck.x() - px * shaft_hw, neck.y() - py * shaft_hw),
-                QPointF(start.x() - px * shaft_hw, start.y() - py * shaft_hw),
-            ]
-        )
+        if is_knight_move:
+            if abs(df) == 2:
+                corner_sq = chess.square(chess.square_file(to_sq), chess.square_rank(from_sq))
+            else:
+                corner_sq = chess.square(chess.square_file(from_sq), chess.square_rank(to_sq))
+            corner = self._square_center(corner_sq, ox, oy, sq)
+
+            d1x, d1y = corner.x() - p1.x(), corner.y() - p1.y()
+            d2x, d2y = p2.x() - corner.x(), p2.y() - corner.y()
+            len1 = math.hypot(d1x, d1y)
+            len2 = math.hypot(d2x, d2y)
+            if len1 < 1e-3 or len2 < 1e-3:
+                return
+
+            u1x, u1y = d1x / len1, d1y / len1
+            u2x, u2y = d2x / len2, d2y / len2
+            n1x, n1y = -u1y, u1x
+            n2x, n2y = -u2y, u2x
+
+            start = QPointF(p1.x() + u1x * (sq * 0.18), p1.y() + u1y * (sq * 0.18))
+            tip = QPointF(p2.x() - u2x * (sq * 0.08), p2.y() - u2y * (sq * 0.08))
+            head_len = min(sq * 0.36, len2 * 0.55)
+            neck = QPointF(tip.x() - u2x * head_len, tip.y() - u2y * head_len)
+
+            poly = QPolygonF(
+                [
+                    QPointF(start.x() + n1x * shaft_hw, start.y() + n1y * shaft_hw),
+                    QPointF(corner.x() + (n1x + n2x) * shaft_hw, corner.y() + (n1y + n2y) * shaft_hw),
+                    QPointF(neck.x() + n2x * shaft_hw, neck.y() + n2y * shaft_hw),
+                    QPointF(neck.x() + n2x * head_hw, neck.y() + n2y * head_hw),
+                    tip,
+                    QPointF(neck.x() - n2x * head_hw, neck.y() - n2y * head_hw),
+                    QPointF(neck.x() - n2x * shaft_hw, neck.y() - n2y * shaft_hw),
+                    QPointF(corner.x() - (n1x + n2x) * shaft_hw, corner.y() - (n1y + n2y) * shaft_hw),
+                    QPointF(start.x() - n1x * shaft_hw, start.y() - n1y * shaft_hw),
+                ]
+            )
+        else:
+            dx = p2.x() - p1.x()
+            dy = p2.y() - p1.y()
+            dist = math.hypot(dx, dy)
+            if dist < 1e-3:
+                return
+
+            ux, uy = dx / dist, dy / dist
+            px, py = -uy, ux
+
+            start = QPointF(p1.x() + ux * (sq * 0.18), p1.y() + uy * (sq * 0.18))
+            tip = QPointF(p2.x() - ux * (sq * 0.08), p2.y() - uy * (sq * 0.08))
+            usable_len = math.hypot(tip.x() - start.x(), tip.y() - start.y())
+            if usable_len < 1e-3:
+                return
+
+            head_len = min(sq * 0.36, usable_len * 0.5)
+            neck = QPointF(tip.x() - ux * head_len, tip.y() - uy * head_len)
+
+            poly = QPolygonF(
+                [
+                    QPointF(start.x() + px * shaft_hw, start.y() + py * shaft_hw),
+                    QPointF(neck.x() + px * shaft_hw, neck.y() + py * shaft_hw),
+                    QPointF(neck.x() + px * head_hw, neck.y() + py * head_hw),
+                    tip,
+                    QPointF(neck.x() - px * head_hw, neck.y() - py * head_hw),
+                    QPointF(neck.x() - px * shaft_hw, neck.y() - py * shaft_hw),
+                    QPointF(start.x() - px * shaft_hw, start.y() - py * shaft_hw),
+                ]
+            )
+
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(color)
         painter.drawPolygon(poly)
