@@ -1,97 +1,73 @@
 # EXP 1: Khởi tạo dự án, Bàn cờ, Luật chuẩn & FEN/PGN
 
-> **Mốc thực hiện:** Mốc 1 (Bàn cờ + Luật chuẩn + Nhập/Xuất FEN & PGN)  
-> **Commit tham chiếu:** `df74bc0` (`feat: initialize RealChess with core board logic, PySide6 UI, and FEN/PGN support`)
+- **Phạm vi:** Mốc 1 — Bàn cờ, luật cờ vua chuẩn, nhập/xuất FEN và PGN
+- **Commit tham chiếu:** `df74bc0` (`feat: initialize RealChess with core board logic, PySide6 UI, and FEN/PGN support`)
 
 ---
 
-## 1. Đặt tên `EXP1` theo từng mốc / commit có ổn không?
+## 1. Công nghệ và công cụ sử dụng
 
-**Rất hợp lý**, đặc biệt khi bạn muốn học từ chính quá trình làm dự án:
-- Mỗi khi xong một tính năng lớn (hoặc một cụm commit), bạn có 1 ghi chú `EXP1`, `EXP2`, `EXP3`... gắn với mã commit.
-- Sau này quên vì sao mình viết file đó hoặc gặp lại lỗi tương tự, chỉ cần mở đúng `EXP` của mốc đó (hoặc tra theo commit) là nhớ lại ngay toàn bộ bối cảnh.
-
----
-
-## 2. Những công nghệ & công cụ đã dùng trong Mốc 1
-
-| Thành phần | Nó là gì (nói dễ hiểu)? | Dùng để làm gì trong dự án này? |
-| :--- | :--- | :--- |
-| **Python 3.12** | Ngôn ngữ lập trình chính | Viết toàn bộ logic và giao diện phần mềm |
-| **`.venv` (Virtual Environment)** | Một "hộp cát" chứa thư viện riêng cho dự án | Giúp cài `PySide6`, `python-chess` gọn trong thư mục `Project 1`, không làm rối các dự án Python khác trên máy |
-| **`python-chess`** | Thư viện cờ vua có sẵn rất uy tín | Xử lý toàn bộ luật cờ (nước đi hợp lệ, nhập thành, bắt tốt qua đường, phong cấp, chiếu hết, hòa...) và đọc/ghi FEN, PGN |
-| **`PySide6` (Qt for Python)** | Bộ công cụ làm giao diện phần mềm desktop (`.exe`) | Vẽ cửa sổ, nút bấm, hộp thoại, và tự vẽ bàn cờ 8x8 + quân cờ |
-| **`pytest`** | Công cụ chạy kiểm thử tự động | Tự động kiểm tra xem logic cờ (`BoardManager`) có chạy đúng không sau mỗi lần sửa code |
-| **Git & GitHub** | Hệ thống lưu lịch sử code & đồng bộ lên mạng | Lưu từng phiên bản code theo từng tính năng (`commit` & `push`) |
+| Thành phần | Vai trò kỹ thuật |
+| :--- | :--- |
+| **Python 3.12** | Ngôn ngữ triển khai chính cho toàn bộ tầng logic và giao diện. |
+| **`.venv` (Virtual Environment)** | Cô lập các thư viện phụ thuộc theo từng dự án, tránh xung đột phiên bản với môi trường hệ thống. |
+| **`python-chess`** | Thư viện xử lý luật cờ vua chuẩn, sinh nước đi hợp lệ, kiểm tra trạng thái kết thúc ván và phân tích/xuất định dạng FEN, PGN. |
+| **`PySide6` (Qt for Python)** | Framework xây dựng giao diện desktop đa nền tảng (widget, hộp thoại, hệ thống sự kiện và đồ họa 2D). |
+| **`pytest`** | Framework kiểm thử đơn vị (unit testing) cho tầng logic. |
+| **Git & GitHub** | Quản lý phiên bản mã nguồn theo từng mốc phát triển. |
 
 ---
 
-## 3. Ý nghĩa từng file và thư mục vừa tạo
+## 2. Kiến trúc và chức năng các tệp mã nguồn
 
-### Kiến trúc tổng thể: Tách riêng **Logic (`src/core`)** và **Giao diện (`src/ui`)**
-Tại sao phải tách làm 2 thư mục như vậy thay vì viết chung vào 1 file?
-- **`src/core/` (Bộ não):** Chỉ lo luật cờ, tính toán, lưu lịch sử. Nó **không biết gì về nút bấm hay màn hình**.
-- **`src/ui/` (Mặt tiền):** Chỉ lo vẽ bàn cờ lên màn hình, nhận cú click/kéo chuột của người chơi rồi hỏi `src/core/` xem nước đó có hợp lệ không.
-- **Lợi ích sau này:** Khi bạn làm thêm AI Stockfish, phân tích ván đấu, hoặc chuyển sang chơi **Online** (nơi logic phải chạy trên Server chứ không có màn hình), bạn giữ nguyên `src/core/` mà không phải đập đi viết lại.
+### Nguyên tắc tách tầng (`src/core` và `src/ui`)
+Hệ thống được chia làm hai lớp độc lập:
+- **`src/core/` (Domain Logic):** Chỉ phụ thuộc `python-chess` và thư viện chuẩn Python, hoàn toàn không tham chiếu tới `PySide6`.
+- **`src/ui/` (Presentation Layer):** Đọc trạng thái từ `src/core/` để hiển thị và chuyển tiếp thao tác người dùng xuống tầng logic.
 
-### Chi tiết từng file
+Cách tổ chức này cho phép tái sử dụng nguyên vẹn tầng logic khi mở rộng sang AI Stockfish, phân tích ván đấu, hoặc triển khai máy chủ ở giai đoạn online.
 
-- `main.py` — **Cửa chính để bật app.** Khi chạy `python main.py`, file này khởi động Qt (`QApplication`) và mở cửa sổ chính `MainWindow`.
-- `src/core/board_manager.py` — **Trái tim của Mốc 1.** Chứa:
-  - `BoardManager`: Lớp quản lý bàn cờ, kiểm tra nước đi hợp lệ, đi lại (`undo_move`), đọc/xuất FEN và PGN, kiểm tra kết thúc ván (chiếu hết, hòa...).
-  - `MoveRecord`: Lưu thông tin 1 nước đi đã đánh (số thứ tự nước, bên đi, ký hiệu `e4`, ký hiệu máy `e2e4`, FEN sau nước đi).
-  - `GameStatus`: Tóm tắt tình trạng hiện tại của ván cờ (đến lượt ai, có đang bị chiếu không, đã kết thúc chưa, kết quả `1-0` / `0-1` / `1/2-1/2`).
-- `src/ui/board_widget.py` — **Bàn cờ tương tác 8x8.** Lo việc vẽ 64 ô cờ, vẽ quân cờ, tô màu nước vừa đi, chấm tròn gợi ý nước hợp lệ, và xử lý thao tác chuột (click để đi hoặc kéo-thả).
-- `src/ui/promotion_dialog.py` — **Hộp thoại phong cấp.** Hiện ra khi Tốt đi đến hàng cuối để người chơi chọn Hậu, Xe, Tượng hoặc Mã.
-- `src/ui/main_window.py` — **Cửa sổ chính của phần mềm.** Ghép `BoardWidget` ở bên trái với bảng điều khiển ở bên phải (trạng thái lượt đi, nút *Ván mới / Đi lại / Xoay bàn cờ*, lịch sử nước đi, ô nhập/copy FEN và hộp thoại PGN).
-- `tests/test_board_manager.py` — **Bài kiểm tra tự động.** Chạy 8 kịch bản test (đi quân, nhập thành, bắt tốt qua đường, phong cấp, chiếu bí kiểu Fool's Mate, hòa 3 lần lặp, undo, FEN/PGN).
-- `requirements.txt` — Danh sách thư viện cần cài (`python-chess`, `PySide6`, `pytest`) để sau này sang máy khác chỉ cần 1 lệnh là cài đủ.
-- `.gitignore` — Danh sách các file/thư mục **không đẩy lên GitHub** (ví dụ `.venv/`, file rác `__pycache__/`, file tạm của hệ thống) để repo luôn nhẹ và sạch.
-- `README.md` — Trang giới thiệu dự án và hướng dẫn cài đặt, chạy thử trên GitHub.
+### Vai trò từng tệp
 
----
-
-## 4. Giao diện bàn cờ được vẽ như thế nào? Quân cờ lấy ở đâu?
-
-Nhiều người mới nghĩ làm game cờ phải tải 12 file ảnh `.png` về rồi ghép lên màn hình. Ở đây mình dùng cách gọn và nét hơn:
-
-1. **Vẽ bàn cờ bằng `QPainter` (cọ vẽ của Qt):**
-   - Trong `BoardWidget.paintEvent()`, code chia vùng vẽ thành lưới `8 x 8` ô vuông bằng nhau.
-   - Mỗi ô được tô màu sáng (`#EEEED2`) hoặc tối (`#769656`), cộng thêm các lớp màu bán trong suốt nếu ô đó là: ô đang chọn, nước vừa đi, hoặc ô Vua đang bị chiếu.
-   - Khi bấm **"Xoay bàn cờ"**, biến `_flipped` đổi sang `True`, công thức tính hàng/cột tự đảo ngược lại (từ góc nhìn quân Đen).
-
-2. **Quân cờ lấy ở đâu? — Tự dựng bằng SVG ngay trong code:**
-   - Thay vì phụ thuộc file ảnh ngoài (dễ lỗi đường dẫn khi đóng gói `.exe`), hàm `_build_piece_svg(symbol)` tạo ra **mã vector SVG** cho cả 12 quân cờ (6 quân Trắng, 6 quân Đen).
-   - `QSvgRenderer` đọc trực tiếp chuỗi SVG đó và vẽ lên bàn cờ.
-   - **Ưu điểm:** Vì là vector SVG nên bạn có phóng to cửa sổ ra màn hình 2K/4K thì quân cờ vẫn sắc nét, không bao giờ bị vỡ hạt.
-
-3. **Thao tác chuột (Click-to-move & Drag-and-drop):**
-   - Khi nhấn chuột xuống một quân đúng lượt (`mousePressEvent`), `BoardWidget` hỏi `BoardManager.get_legal_moves_from(square)` để lấy danh sách các ô hợp lệ rồi vẽ chấm tròn gợi ý.
-   - Nếu bạn **kéo chuột** (`mouseMoveEvent`), quân cờ đi theo con trỏ; khi **thả chuột** (`mouseReleaseEvent`) vào ô hợp lệ thì nước đi được thực hiện.
-   - Nếu bạn chỉ **click 1 lần** vào quân rồi **click tiếp** vào ô đích, nước đi cũng được thực hiện bình thường.
+- `main.py`: Điểm khởi chạy ứng dụng, khởi tạo `QApplication` và hiển thị `MainWindow`.
+- `src/core/board_manager.py`:
+  - `BoardManager`: Quản lý trạng thái bàn cờ, xác thực nước đi, hoàn tác (`undo_move`), đọc/xuất FEN và PGN, xác định kết quả ván đấu.
+  - `MoveRecord`: Bản ghi bất biến (`dataclass(frozen=True)`) lưu thông tin mỗi nửa nước đi (`ply`, `move_number`, `color`, `uci`, `san`, `fen_after`).
+  - `GameStatus`: Bản ghi trạng thái hiện tại của ván đấu (`is_game_over`, `result`, `termination`, `outcome_text`, `turn`, `in_check`, `check_square`).
+- `src/ui/board_widget.py`: Widget bàn cờ 8x8, đảm nhận vẽ lưới ô cờ, quân cờ, đánh dấu ô hợp lệ/nước vừa đi/ô bị chiếu và xử lý sự kiện chuột.
+- `src/ui/promotion_dialog.py`: Hộp thoại cho phép người dùng chọn quân phong cấp (Hậu, Xe, Tượng, Mã).
+- `src/ui/main_window.py`: Cửa sổ chính tích hợp `BoardWidget` với bảng điều khiển (trạng thái ván đấu, nút điều khiển, danh sách nước đi SAN, nhập/xuất FEN và PGN).
+- `tests/test_board_manager.py`: Bộ 8 ca kiểm thử đơn vị bao phủ nước đi hợp lệ/bất hợp lệ, nhập thành, bắt tốt qua đường, phong cấp, chiếu hết, các luật hòa, hoàn tác và FEN/PGN.
+- `requirements.txt`, `.gitignore`, `README.md`: Khai báo phụ thuộc, loại trừ tệp tạm/môi trường khỏi Git và tài liệu hướng dẫn cơ bản.
 
 ---
 
-## 5. FEN và PGN là gì? (Nền tảng cho mọi tính năng sau)
+## 3. Cơ chế hiển thị và tương tác bàn cờ
 
-- **FEN (Forsyth–Edwards Notation):** Là một dòng chữ ngắn mô tả **ảnh chụp 1 thế cờ tại 1 thời điểm** (vị trí các quân, đến lượt ai, còn quyền nhập thành không, có ô bắt tốt qua đường không...).
-  - *Ví dụ FEN xuất phát:* `rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1`
-  - *Dùng để làm gì:* Lưu thế cờ nhanh, làm bài tập Puzzle, hoặc làm **nút (node)** trong đồ thị khai cuộc ở Mốc 4!
-- **PGN (Portable Game Notation):** Là định dạng chuẩn lưu **cả một ván cờ từ đầu đến cuối** (tên người chơi, kết quả, toàn bộ chuỗi nước đi `1. e4 e5 2. Nf3...`).
-  - *Dùng để làm gì:* Xuất ván vừa chơi để chia sẻ, hoặc nạp ván đấu tải từ Chess.com / Lichess vào phần mềm để phân tích ở Mốc 3.
+1. **Vẽ bàn cờ bằng `QPainter`:**
+   - Phương thức `BoardWidget.paintEvent()` chia vùng hiển thị thành lưới `8 x 8` ô vuông cân đối theo kích thước cửa sổ.
+   - Các lớp hiển thị được vẽ theo thứ tự: nền ô sáng/tối, vùng tô sáng (nước vừa đi, ô đang chọn, vua bị chiếu), chỉ báo nước đi hợp lệ và quân cờ.
+   - Chế độ xoay bàn cờ (`_flipped`) đảo ngược phép ánh xạ chỉ số hàng/cột giữa tọa độ màn hình và chỉ số ô cờ `0..63`.
 
----
+2. **Đồ họa quân cờ bằng SVG nội tuyến:**
+   - Hàm `_build_piece_svg(symbol)` tạo mã vector SVG chuẩn hóa trên hệ tọa độ `viewBox="0 0 45 45"` cho 12 loại quân.
+   - `QSvgRenderer` kết xuất trực tiếp dữ liệu SVG lên `QPainter`, không phụ thuộc tệp ảnh ngoài và đảm bảo độ nét ở mọi tỷ lệ phóng.
 
-## 6. Một bài học thực tế ngay trong Mốc 1 (Lỗi đã gặp & cách sửa)
-
-Trong lúc viết test cho luật **Hòa do lặp lại thế cờ 3 lần**, bài test bị lỗi ngay trước nước đi cuối cùng:
-- **Nguyên nhân:** Hàm `board.outcome(claim_draw=True)` của thư viện `python-chess` kiểm tra xem *"người chơi có quyền đòi hòa không"*. Theo luật FIDE, bạn có quyền đòi hòa ngay cả khi thế cờ sắp lặp lần thứ 3 **ở nước đi tiếp theo** (chỉ cần chỉ ra nước đi đó). Vì vậy app tưởng ván đã kết thúc sớm hơn 1 nước!
-- **Cách sửa:** Tách rõ ra trong `BoardManager.get_status()`:
-  1. Kiểm tra `board.outcome(claim_draw=False)` (chiếu hết, hết nước đi, thiếu lực lượng, 5 lần lặp, 75 nước).
-  2. Kiểm tra trực tiếp `board.is_repetition(3)` và `board.is_fifty_moves()` để chỉ báo hòa **sau khi nước đi thứ 3 thực sự được đi trên bàn cờ** (giống trải nghiệm trên Lichess / Chess.com).
-- **Bài học rút ra:** Đừng tin 100% rằng thư viện chạy đúng ý mình cho tới khi tự viết `pytest` kiểm tra các trường hợp biên (edge cases) như lặp lại 3 lần hay phong cấp.
+3. **Xử lý thao tác chuột:**
+   - Hỗ trợ đồng thời hai cơ chế: chọn rồi nhấp ô đích (click-to-move) và kéo-thả (drag-and-drop) thông qua `mousePressEvent`, `mouseMoveEvent`, `mouseReleaseEvent`.
+   - Khi ô đích là nước phong cấp (`is_promotion_move`), giao diện mở `PromotionDialog` để lấy loại quân trước khi gọi `BoardManager.make_move()`.
 
 ---
 
-## 7. Bước tiếp theo
-Sau khi bạn chạy thử `.\.venv\Scripts\python.exe main.py` và kiểm tra ổn các thao tác (đi quân, phong cấp, đi lại, nạp/xuất FEN & PGN), chúng ta sẽ bước sang **Mốc 2: Tích hợp engine AI Stockfish** (chọn độ khó, chơi với máy).
+## 4. Định dạng dữ liệu FEN và PGN
+
+- **FEN (Forsyth–Edwards Notation):** Chuỗi mô tả trạng thái tức thời của một thế cờ (vị trí quân, lượt đi, quyền nhập thành, ô bắt tốt qua đường, bộ đếm nửa nước và số nước đi). Dùng làm khóa định danh thế cờ cho phân tích và đồ thị khai cuộc ở các mốc sau.
+- **PGN (Portable Game Notation):** Định dạng chuẩn lưu toàn bộ ván đấu gồm thẻ thông tin (`Event`, `White`, `Black`, `Result`, hoặc `FEN` nếu xuất phát từ thế cờ tùy chỉnh) và chuỗi nước đi chuẩn SAN.
+
+---
+
+## 5. Vấn đề kỹ thuật gặp phải và hướng xử lý
+
+- **Hiện tượng:** Ca kiểm thử luật hòa lặp lại 3 lần ném ngoại lệ `ValueError` ở nửa nước đi thứ 8 (trước khi thế cờ lặp lại lần thứ 3 thực sự xuất hiện trên bàn cờ).
+- **Nguyên nhân:** `board.outcome(claim_draw=True)` trong `python-chess` kiểm tra điều kiện *có quyền đòi hòa* theo luật FIDE — tức trả về kết quả hòa ngay từ nước trước đó nếu bên đến lượt có một nước đi hợp lệ tạo ra lần lặp thứ 3.
+- **Giải pháp:** Trong `BoardManager.get_status()`, tách thành kiểm tra `board.outcome(claim_draw=False)` (chiếu hết, hết nước đi, thiếu lực lượng, 5 lần lặp, 75 nước), sau đó kiểm tra tường minh `board.is_repetition(3)` và `board.is_fifty_moves()`. Nhờ đó trạng thái hòa chỉ kích hoạt sau khi nước đi thứ 3 (hoặc nước thứ 50) được thực hiện trên bàn cờ.
