@@ -1,0 +1,19 @@
+"""Entry point for the RealChess desktop application."""
+
+import sys
+
+from PySide6.QtWidgets import QApplication
+
+from src.ui import MainWindow
+
+
+def main() -> int:
+    app = QApplication(sys.argv)
+    app.setApplicationName("RealChess")
+    window = MainWindow()
+    window.show()
+    return app.exec()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

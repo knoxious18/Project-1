@@ -1,0 +1,320 @@
+"""Interactive 8x8 chess board widget rendered with PySide6 & SVG pieces."""
+
+from __future__ import annotations
+
+from typing import Optional
+
+import chess
+from PySide6.QtCore import QByteArray, QPointF, QRectF, Qt, Signal
+from PySide6.QtGui import QColor, QFont, QMouseEvent, QPainter, QPen
+from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtWidgets import QSizePolicy, QWidget
+
+from src.core import BoardManager
+from src.ui.promotion_dialog import PromotionDialog
+
+
+def _build_piece_svg(symbol: str) -> bytes:
+    """Returns clean, scalable SVG bytes for a given FEN piece symbol (e.g. 'K', 'p')."""
+    is_white = symbol.isupper()
+    fill = "#FFFFFF" if is_white else "#1E242B"
+    stroke = "#1E242B" if is_white else "#0B0E11"
+    detail = "#1E242B" if is_white else "#E2E8F0"
+    kind = symbol.lower()
+
+    if kind == "p":
+        body = (
+            f'<circle cx="22.5" cy="14" r="5.5" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
+            f'<path d="M15 35 C15 26 18 22 22.5 22 C27 22 30 26 30 35 Z" '
+            f'fill="{fill}" stroke="{stroke}" stroke-width="2" stroke-linejoin="round"/>'
+            f'<rect x="12" y="35" width="21" height="4" rx="1.5" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
+        )
+    elif kind == "r":
+        body = (
+            f'<path d="M12 11 H16 V15 H20 V11 H25 V15 H29 V11 H33 V19 L30 22 V33 L33 36 H12 L15 33 V22 L12 19 Z" '
+            f'fill="{fill}" stroke="{stroke}" stroke-width="2" stroke-linejoin="round"/>'
+            f'<rect x="11" y="36" width="23" height="3.5" rx="1" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
+            f'<line x1="15" y1="22" x2="30" y2="22" stroke="{detail}" stroke-width="1.5"/>'
+        )
+    elif kind == "n":
+        body = (
+            f'<path d="M14 36 L16 25 C14 23 12 20 14 16 C16 12 21 10 26 10 L29 7 L30 12 '
+            f'C33 14 34 19 32 24 C30 28 28 31 30 36 Z" '
+            f'fill="{fill}" stroke="{stroke}" stroke-width="2" stroke-linejoin="round"/>'
+            f'<circle cx="20.5" cy="16" r="1.4" fill="{detail}"/>'
+            f'<rect x="11.5" y="36" width="22" height="3.5" rx="1" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
+        )
+    elif kind == "b":
+        body = (
+            f'<circle cx="22.5" cy="9" r="2.5" fill="{fill}" stroke="{stroke}" stroke-width="1.8"/>'
+            f'<path d="M22.5 12 C16 17 15 24 17 31 L14 35 H31 L28 31 C30 24 29 17 22.5 12 Z" '
+            f'fill="{fill}" stroke="{stroke}" stroke-width="2" stroke-linejoin="round"/>'
+            f'<line x1="19" y1="20" x2="26" y2="27" stroke="{detail}" stroke-width="1.8" stroke-linecap="round"/>'
+            f'<line x1="26" y1="20" x2="19" y2="27" stroke="{detail}" stroke-width="1.8" stroke-linecap="round"/>'
+            f'<rect x="11.5" y="35" width="22" height="4" rx="1.5" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
+        )
+    elif kind == "q":
+        body = (
+            f'<circle cx="9.5" cy="14" r="2.2" fill="{fill}" stroke="{stroke}" stroke-width="1.6"/>'
+            f'<circle cx="16" cy="10.5" r="2.2" fill="{fill}" stroke="{stroke}" stroke-width="1.6"/>'
+            f'<circle cx="22.5" cy="9" r="2.4" fill="{fill}" stroke="{stroke}" stroke-width="1.6"/>'
+            f'<circle cx="29" cy="10.5" r="2.2" fill="{fill}" stroke="{stroke}" stroke-width="1.6"/>'
+            f'<circle cx="35.5" cy="14" r="2.2" fill="{fill}" stroke="{stroke}" stroke-width="1.6"/>'
+            f'<path d="M10.5 16.5 L15 29 H30 L34.5 16.5 L28 24 L29 13 L22.5 23 L16 13 L17 24 Z" '
+            f'fill="{fill}" stroke="{stroke}" stroke-width="2" stroke-linejoin="round"/>'
+            f'<path d="M14 29 L12.5 35.5 H32.5 L31 29 Z" fill="{fill}" stroke="{stroke}" stroke-width="2" stroke-linejoin="round"/>'
+            f'<rect x="11.5" y="35.5" width="22" height="3.5" rx="1" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
+        )
+    else:  # 'k'
+        body = (
+            f'<line x1="22.5" y1="6.5" x2="22.5" y2="14" stroke="{stroke}" stroke-width="2.4" stroke-linecap="round"/>'
+            f'<line x1="18.5" y1="10" x2="26.5" y2="10" stroke="{stroke}" stroke-width="2.4" stroke-linecap="round"/>'
+            f'<path d="M13 21 C11 16 17 13 22.5 17 C28 13 34 16 32 21 L29.5 32 H15.5 Z" '
+            f'fill="{fill}" stroke="{stroke}" stroke-width="2" stroke-linejoin="round"/>'
+            f'<line x1="16" y1="27" x2="29" y2="27" stroke="{detail}" stroke-width="1.6"/>'
+            f'<rect x="12" y="32" width="21" height="3.5" rx="1" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
+            f'<rect x="11" y="35.5" width="23" height="3.5" rx="1" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
+        )
+
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">'
+        f"{body}"
+        "</svg>"
+    )
+    return svg.encode("utf-8")
+
+
+class BoardWidget(QWidget):
+    """Interactive 8x8 chess board supporting click-to-move and drag-and-drop."""
+
+    board_changed = Signal()
+    status_message = Signal(str)
+
+    LIGHT_SQUARE = QColor("#EEEED2")
+    DARK_SQUARE = QColor("#769656")
+    SELECTED_COLOR = QColor(246, 246, 105, 190)
+    LAST_MOVE_COLOR = QColor(246, 246, 105, 120)
+    CHECK_COLOR = QColor(235, 64, 52, 180)
+    LEGAL_DOT_COLOR = QColor(20, 20, 20, 65)
+
+    def __init__(self, manager: BoardManager, parent=None) -> None:
+        super().__init__(parent)
+        self._manager = manager
+        self._flipped = False
+        self._selected_square: Optional[int] = None
+        self._legal_targets: set[int] = set()
+        self._dragging_square: Optional[int] = None
+        self._drag_pos: Optional[QPointF] = None
+
+        self._renderers: dict[str, QSvgRenderer] = {
+            sym: QSvgRenderer(QByteArray(_build_piece_svg(sym)))
+            for sym in ("P", "N", "B", "R", "Q", "K", "p", "n", "b", "r", "q", "k")
+        }
+
+        self.setMinimumSize(440, 440)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setMouseTracking(True)
+
+    def set_flipped(self, flipped: bool) -> None:
+        self._flipped = flipped
+        self.update()
+
+    def is_flipped(self) -> bool:
+        return self._flipped
+
+    def clear_selection(self) -> None:
+        self._selected_square = None
+        self._legal_targets.clear()
+        self._dragging_square = None
+        self._drag_pos = None
+        self.update()
+
+    def _board_geometry(self) -> tuple[float, float, float]:
+        """Returns (origin_x, origin_y, square_size) for centered square board."""
+        margin = 20.0
+        side = max(160.0, min(self.width(), self.height()) - 2 * margin)
+        sq = side / 8.0
+        ox = (self.width() - side) / 2.0
+        oy = (self.height() - side) / 2.0
+        return ox, oy, sq
+
+    def _square_to_rc(self, square: int) -> tuple[int, int]:
+        file_idx = chess.square_file(square)
+        rank_idx = chess.square_rank(square)
+        if self._flipped:
+            row = rank_idx
+            col = 7 - file_idx
+        else:
+            row = 7 - rank_idx
+            col = file_idx
+        return row, col
+
+    def _pos_to_square(self, pos: QPointF) -> Optional[int]:
+        ox, oy, sq = self._board_geometry()
+        col = int((pos.x() - ox) // sq)
+        row = int((pos.y() - oy) // sq)
+        if not (0 <= col < 8 and 0 <= row < 8):
+            return None
+        if self._flipped:
+            file_idx = 7 - col
+            rank_idx = row
+        else:
+            file_idx = col
+            rank_idx = 7 - row
+        return chess.square(file_idx, rank_idx)
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        ox, oy, sq = self._board_geometry()
+        status = self._manager.get_status()
+        last_move = self._manager.get_last_move()
+        last_squares = {last_move.from_square, last_move.to_square} if last_move else set()
+
+        coord_font = QFont("Segoe UI", max(8, int(sq * 0.17)), QFont.Weight.DemiBold)
+        painter.setFont(coord_font)
+
+        # Draw squares & highlights
+        for row in range(8):
+            for col in range(8):
+                file_idx = 7 - col if self._flipped else col
+                rank_idx = row if self._flipped else 7 - row
+                square = chess.square(file_idx, rank_idx)
+                is_light = (file_idx + rank_idx) % 2 == 1
+
+                rect = QRectF(ox + col * sq, oy + row * sq, sq, sq)
+                painter.fillRect(rect, self.LIGHT_SQUARE if is_light else self.DARK_SQUARE)
+
+                if square in last_squares:
+                    painter.fillRect(rect, self.LAST_MOVE_COLOR)
+                if square == self._selected_square:
+                    painter.fillRect(rect, self.SELECTED_COLOR)
+                if status.check_square == square:
+                    painter.fillRect(rect, self.CHECK_COLOR)
+
+                # Rank & file labels along edges
+                label_color = self.DARK_SQUARE if is_light else self.LIGHT_SQUARE
+                painter.setPen(label_color)
+                if col == 0:
+                    painter.drawText(
+                        rect.adjusted(3, 2, 0, 0),
+                        Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft,
+                        str(rank_idx + 1),
+                    )
+                if row == 7:
+                    painter.drawText(
+                        rect.adjusted(0, 0, -4, -2),
+                        Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight,
+                        chess.FILE_NAMES[file_idx],
+                    )
+
+        # Draw legal move indicators
+        for target_sq in self._legal_targets:
+            row, col = self._square_to_rc(target_sq)
+            rect = QRectF(ox + col * sq, oy + row * sq, sq, sq)
+            has_piece = self._manager.get_piece_at(target_sq) is not None
+            if has_piece:
+                pen = QPen(self.LEGAL_DOT_COLOR, max(3.0, sq * 0.08))
+                painter.setPen(pen)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.drawEllipse(rect.adjusted(sq * 0.08, sq * 0.08, -sq * 0.08, -sq * 0.08))
+            else:
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(self.LEGAL_DOT_COLOR)
+                r = sq * 0.16
+                painter.drawEllipse(rect.center(), r, r)
+
+        # Draw static pieces
+        for square, piece in self._manager.get_board_map().items():
+            if square == self._dragging_square:
+                continue
+            row, col = self._square_to_rc(square)
+            rect = QRectF(ox + col * sq, oy + row * sq, sq, sq).adjusted(
+                sq * 0.06, sq * 0.06, -sq * 0.06, -sq * 0.06
+            )
+            self._renderers[piece.symbol()].render(painter, rect)
+
+        # Draw dragged piece on top
+        if self._dragging_square is not None and self._drag_pos is not None:
+            piece = self._manager.get_piece_at(self._dragging_square)
+            if piece is not None:
+                half = sq * 0.48
+                rect = QRectF(
+                    self._drag_pos.x() - half,
+                    self._drag_pos.y() - half,
+                    half * 2,
+                    half * 2,
+                )
+                self._renderers[piece.symbol()].render(painter, rect)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() != Qt.MouseButton.LeftButton:
+            return
+        sq = self._pos_to_square(event.position())
+        if sq is None:
+            self.clear_selection()
+            return
+
+        # Click on a legal destination of currently selected piece
+        if self._selected_square is not None and sq in self._legal_targets:
+            self._attempt_move(self._selected_square, sq)
+            return
+
+        piece = self._manager.get_piece_at(sq)
+        status = self._manager.get_status()
+        is_turn_piece = (
+            piece is not None
+            and not status.is_game_over
+            and (
+                (piece.color == chess.WHITE and status.turn == "white")
+                or (piece.color == chess.BLACK and status.turn == "black")
+            )
+        )
+
+        if is_turn_piece:
+            self._selected_square = sq
+            self._legal_targets = {m.to_square for m in self._manager.get_legal_moves_from(sq)}
+            self._dragging_square = sq
+            self._drag_pos = event.position()
+            self.update()
+        else:
+            self.clear_selection()
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        if self._dragging_square is not None:
+            self._drag_pos = event.position()
+            self.update()
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if event.button() != Qt.MouseButton.LeftButton or self._dragging_square is None:
+            return
+        from_sq = self._dragging_square
+        to_sq = self._pos_to_square(event.position())
+        self._dragging_square = None
+        self._drag_pos = None
+
+        if to_sq is not None and to_sq != from_sq and to_sq in self._legal_targets:
+            self._attempt_move(from_sq, to_sq)
+        else:
+            self.update()
+
+    def _attempt_move(self, from_sq: int, to_sq: int) -> None:
+        promotion: Optional[int] = None
+        if self._manager.is_promotion_move(from_sq, to_sq):
+            is_white = self._manager.get_status().turn == "white"
+            dialog = PromotionDialog(is_white=is_white, parent=self)
+            if dialog.exec() != PromotionDialog.DialogCode.Accepted:
+                self.clear_selection()
+                return
+            promotion = dialog.selected_piece
+
+        try:
+            self._manager.make_move(from_sq, to_sq, promotion=promotion)
+        except ValueError as exc:
+            self.status_message.emit(str(exc))
+            self.clear_selection()
+            return
+
+        self.clear_selection()
+        self.board_changed.emit()
