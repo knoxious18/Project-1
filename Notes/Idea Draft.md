@@ -8,12 +8,12 @@
 Mong muốn: phần mềm cài trên máy (file .exe?), không làm web app để có thể triển khai được phân tích offline(phần 3)
 
 ## 1. Giao diện
-- [ ] Bàn cờ cơ bản: quân cờ và đầy đủ tất cả các luật. 
+- [x] Bàn cờ cơ bản: quân cờ và đầy đủ tất cả các luật. 
 - [ ] Hiển thị nước đi hợp lệ, mũi tên chỉ hướng, animation di chuyển quân
 - [ ] Nâng cấp thêm chủ đề và kiểu quân khác nhau
 - [ ] Đồng hồ tính giờ, chia các chế độ (rapid 10p blitz 5p, bullet 1p,...)
 - [ ] Lưu lại nước đi, *lưu lại ván đấu*
-- [ ] Nhập / xuất PGN và FEN
+- [x] Nhập / xuất PGN và FEN
 ## 2. Gameplay
 ### a. Với AI (offline)
 - [ ] Engine AI (lấy mã nguồn Stockfish), có thể chọn độ khó khác nhau
@@ -23,7 +23,7 @@ Mong muốn: phần mềm cài trên máy (file .exe?), không làm web app đ�
 ### b. Với người
 #### Offline local 
 - [ ] Như chơi với AI nhưng mà thay AI bằng người
-- [ ] *Phát triển chơi qua mạng LAN, mục đích là 2 máy tiện thao tác hơn (dùng trong thi đấu, tính giờ và tắt gợi ý, tắt đi lại*
+- [ ] *Phát triển chơi qua mạng LAN, mục đích là 2 máy tiện thao tác hơn (dùng trong thi đấu, tính giờ và tắt gợi ý, tắt đi lại*)
 #### Online
 - [ ] *Yêu cầu phải tạo tài khoản (sử dụng cơ sở dữ liệu). Dùng SSMS?*
 - [ ] Chơi như thi đấu

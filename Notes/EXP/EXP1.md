@@ -7,14 +7,14 @@
 
 ## 1. Công nghệ và công cụ sử dụng
 
-| Thành phần | Vai trò kỹ thuật |
-| :--- | :--- |
-| **Python 3.12** | Ngôn ngữ triển khai chính cho toàn bộ tầng logic và giao diện. |
-| **`.venv` (Virtual Environment)** | Cô lập các thư viện phụ thuộc theo từng dự án, tránh xung đột phiên bản với môi trường hệ thống. |
-| **`python-chess`** | Thư viện xử lý luật cờ vua chuẩn, sinh nước đi hợp lệ, kiểm tra trạng thái kết thúc ván và phân tích/xuất định dạng FEN, PGN. |
-| **`PySide6` (Qt for Python)** | Framework xây dựng giao diện desktop đa nền tảng (widget, hộp thoại, hệ thống sự kiện và đồ họa 2D). |
-| **`pytest`** | Framework kiểm thử đơn vị (unit testing) cho tầng logic. |
-| **Git & GitHub** | Quản lý phiên bản mã nguồn theo từng mốc phát triển. |
+| Thành phần                        | Vai trò kỹ thuật                                                                                                              |
+| :-------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- |
+| **Python 3.12**                   | Ngôn ngữ triển khai chính cho toàn bộ tầng logic và giao diện.                                                                |
+| **`.venv` (Virtual Environment)** | Cô lập các thư viện phụ thuộc theo từng dự án, tránh xung đột phiên bản với môi trường hệ thống.                              |
+| **`python-chess`**                | Thư viện xử lý luật cờ vua chuẩn, sinh nước đi hợp lệ, kiểm tra trạng thái kết thúc ván và phân tích/xuất định dạng FEN, PGN. |
+| **`PySide6` (Qt for Python)**     | Framework xây dựng giao diện desktop đa nền tảng (widget, hộp thoại, hệ thống sự kiện và đồ họa 2D).                          |
+| **`pytest`**                      | Framework kiểm thử đơn vị (unit testing) cho tầng logic.                                                                      |
+| **Git & GitHub**                  | Quản lý phiên bản mã nguồn theo từng mốc phát triển.                                                                          |
 
 ---
 
