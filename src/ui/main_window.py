@@ -17,8 +17,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.core import BoardManager
+from src.core import AppSettings, BoardManager, load_settings, save_settings
 from src.ui.board_widget import BoardWidget
+from src.ui.settings_dialog import SettingsDialog
 
 
 class PgnDialog(QDialog):
@@ -63,6 +64,7 @@ class MainWindow(QMainWindow):
         self.resize(980, 680)
 
         self._manager = BoardManager()
+        self._settings = load_settings()
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -71,7 +73,7 @@ class MainWindow(QMainWindow):
         main_layout.setSpacing(16)
 
         # Left: Chess board
-        self._board_widget = BoardWidget(self._manager)
+        self._board_widget = BoardWidget(self._manager, settings=self._settings)
         self._board_widget.board_changed.connect(self._refresh_ui)
         self._board_widget.status_message.connect(self._show_error)
         main_layout.addWidget(self._board_widget, stretch=3)
@@ -97,7 +99,12 @@ class MainWindow(QMainWindow):
         undo_btn.clicked.connect(self._on_undo)
         flip_btn = QPushButton("Xoay bàn cờ")
         flip_btn.clicked.connect(self._on_flip)
-        for btn in (new_btn, undo_btn, flip_btn):
+        settings_btn = QPushButton("⚙")
+        settings_btn.setToolTip("Cài đặt giao diện")
+        settings_btn.setFixedWidth(40)
+        settings_btn.setStyleSheet("font-size: 16px;")
+        settings_btn.clicked.connect(self._on_settings)
+        for btn in (new_btn, undo_btn, flip_btn, settings_btn):
             btn.setMinimumHeight(34)
             actions_row.addWidget(btn)
         side_panel.addLayout(actions_row)
@@ -172,6 +179,14 @@ class MainWindow(QMainWindow):
 
     def _on_flip(self) -> None:
         self._board_widget.set_flipped(not self._board_widget.is_flipped())
+
+    def _on_settings(self) -> None:
+        dialog = SettingsDialog(self._settings, parent=self)
+        dialog.settings_applied.connect(self._board_widget.apply_settings)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._settings = dialog.current_settings()
+            self._board_widget.apply_settings(self._settings)
+            save_settings(self._settings)
 
     def _on_load_fen(self) -> None:
         try:

@@ -28,3 +28,4 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 engines/
+settings.json

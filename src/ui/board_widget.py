@@ -6,83 +6,14 @@ import math
 from typing import Optional
 
 import chess
-from PySide6.QtCore import QByteArray, QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QByteArray, QEasingCurve, QPointF, QRectF, Qt, QVariantAnimation, Signal
 from PySide6.QtGui import QColor, QFont, QMouseEvent, QPainter, QPen, QPolygonF
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
-from src.core import BoardManager
+from src.core import AppSettings, BoardManager
 from src.ui.promotion_dialog import PromotionDialog
-
-
-def _build_piece_svg(symbol: str) -> bytes:
-    """Returns clean, scalable SVG bytes for a given FEN piece symbol (e.g. 'K', 'p')."""
-    is_white = symbol.isupper()
-    fill = "#FFFFFF" if is_white else "#1E242B"
-    stroke = "#1E242B" if is_white else "#0B0E11"
-    detail = "#1E242B" if is_white else "#E2E8F0"
-    kind = symbol.lower()
-
-    if kind == "p":
-        body = (
-            f'<circle cx="22.5" cy="14" r="5.5" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
-            f'<path d="M15 35 C15 26 18 22 22.5 22 C27 22 30 26 30 35 Z" '
-            f'fill="{fill}" stroke="{stroke}" stroke-width="2" stroke-linejoin="round"/>'
-            f'<rect x="12" y="35" width="21" height="4" rx="1.5" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
-        )
-    elif kind == "r":
-        body = (
-            f'<path d="M12 11 H16 V15 H20 V11 H25 V15 H29 V11 H33 V19 L30 22 V33 L33 36 H12 L15 33 V22 L12 19 Z" '
-            f'fill="{fill}" stroke="{stroke}" stroke-width="2" stroke-linejoin="round"/>'
-            f'<rect x="11" y="36" width="23" height="3.5" rx="1" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
-            f'<line x1="15" y1="22" x2="30" y2="22" stroke="{detail}" stroke-width="1.5"/>'
-        )
-    elif kind == "n":
-        body = (
-            f'<path d="M14 36 L16 25 C14 23 12 20 14 16 C16 12 21 10 26 10 L29 7 L30 12 '
-            f'C33 14 34 19 32 24 C30 28 28 31 30 36 Z" '
-            f'fill="{fill}" stroke="{stroke}" stroke-width="2" stroke-linejoin="round"/>'
-            f'<circle cx="20.5" cy="16" r="1.4" fill="{detail}"/>'
-            f'<rect x="11.5" y="36" width="22" height="3.5" rx="1" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
-        )
-    elif kind == "b":
-        body = (
-            f'<circle cx="22.5" cy="9" r="2.5" fill="{fill}" stroke="{stroke}" stroke-width="1.8"/>'
-            f'<path d="M22.5 12 C16 17 15 24 17 31 L14 35 H31 L28 31 C30 24 29 17 22.5 12 Z" '
-            f'fill="{fill}" stroke="{stroke}" stroke-width="2" stroke-linejoin="round"/>'
-            f'<line x1="19" y1="20" x2="26" y2="27" stroke="{detail}" stroke-width="1.8" stroke-linecap="round"/>'
-            f'<line x1="26" y1="20" x2="19" y2="27" stroke="{detail}" stroke-width="1.8" stroke-linecap="round"/>'
-            f'<rect x="11.5" y="35" width="22" height="4" rx="1.5" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
-        )
-    elif kind == "q":
-        body = (
-            f'<circle cx="9.5" cy="14" r="2.2" fill="{fill}" stroke="{stroke}" stroke-width="1.6"/>'
-            f'<circle cx="16" cy="10.5" r="2.2" fill="{fill}" stroke="{stroke}" stroke-width="1.6"/>'
-            f'<circle cx="22.5" cy="9" r="2.4" fill="{fill}" stroke="{stroke}" stroke-width="1.6"/>'
-            f'<circle cx="29" cy="10.5" r="2.2" fill="{fill}" stroke="{stroke}" stroke-width="1.6"/>'
-            f'<circle cx="35.5" cy="14" r="2.2" fill="{fill}" stroke="{stroke}" stroke-width="1.6"/>'
-            f'<path d="M10.5 16.5 L15 29 H30 L34.5 16.5 L28 24 L29 13 L22.5 23 L16 13 L17 24 Z" '
-            f'fill="{fill}" stroke="{stroke}" stroke-width="2" stroke-linejoin="round"/>'
-            f'<path d="M14 29 L12.5 35.5 H32.5 L31 29 Z" fill="{fill}" stroke="{stroke}" stroke-width="2" stroke-linejoin="round"/>'
-            f'<rect x="11.5" y="35.5" width="22" height="3.5" rx="1" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
-        )
-    else:  # 'k'
-        body = (
-            f'<line x1="22.5" y1="6.5" x2="22.5" y2="14" stroke="{stroke}" stroke-width="2.4" stroke-linecap="round"/>'
-            f'<line x1="18.5" y1="10" x2="26.5" y2="10" stroke="{stroke}" stroke-width="2.4" stroke-linecap="round"/>'
-            f'<path d="M13 21 C11 16 17 13 22.5 17 C28 13 34 16 32 21 L29.5 32 H15.5 Z" '
-            f'fill="{fill}" stroke="{stroke}" stroke-width="2" stroke-linejoin="round"/>'
-            f'<line x1="16" y1="27" x2="29" y2="27" stroke="{detail}" stroke-width="1.6"/>'
-            f'<rect x="12" y="32" width="21" height="3.5" rx="1" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
-            f'<rect x="11" y="35.5" width="23" height="3.5" rx="1" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
-        )
-
-    svg = (
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">'
-        f"{body}"
-        "</svg>"
-    )
-    return svg.encode("utf-8")
+from src.ui.themes import ANIMATION_SPEEDS, BOARD_THEMES, BoardTheme, build_piece_svg
 
 
 class BoardWidget(QWidget):
@@ -91,17 +22,13 @@ class BoardWidget(QWidget):
     board_changed = Signal()
     status_message = Signal(str)
 
-    LIGHT_SQUARE = QColor("#EEEED2")
-    DARK_SQUARE = QColor("#769656")
-    SELECTED_COLOR = QColor(246, 246, 105, 190)
-    LAST_MOVE_COLOR = QColor(246, 246, 105, 120)
     CHECK_COLOR = QColor(235, 64, 52, 180)
     LEGAL_DOT_COLOR = QColor(20, 20, 20, 65)
     USER_HIGHLIGHT_COLOR = QColor(235, 97, 80, 165)
     ARROW_COLOR = QColor(255, 170, 0, 185)
     ARROW_PREVIEW_COLOR = QColor(255, 170, 0, 120)
 
-    def __init__(self, manager: BoardManager, parent=None) -> None:
+    def __init__(self, manager: BoardManager, settings: Optional[AppSettings] = None, parent=None) -> None:
         super().__init__(parent)
         self._manager = manager
         self._flipped = False
@@ -114,14 +41,64 @@ class BoardWidget(QWidget):
         self._right_drag_start: Optional[int] = None
         self._right_drag_current: Optional[int] = None
 
-        self._renderers: dict[str, QSvgRenderer] = {
-            sym: QSvgRenderer(QByteArray(_build_piece_svg(sym)))
-            for sym in ("P", "N", "B", "R", "Q", "K", "p", "n", "b", "r", "q", "k")
-        }
+        self._theme: BoardTheme = BOARD_THEMES["classic_green"]
+        self._piece_style: str = ""
+        self._anim_duration_ms: int = 120
+        self._renderers: dict[str, QSvgRenderer] = {}
+
+        self._anim_from_sq: Optional[int] = None
+        self._anim_to_sq: Optional[int] = None
+        self._anim_piece_symbol: Optional[str] = None
+        self._anim_progress: float = 1.0
+        self._anim = QVariantAnimation(self)
+        self._anim.setStartValue(0.0)
+        self._anim.setEndValue(1.0)
+        self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._anim.valueChanged.connect(self._on_anim_value)
+        self._anim.finished.connect(self._on_anim_finished)
+
+        self.apply_settings(settings or AppSettings())
 
         self.setMinimumSize(440, 440)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMouseTracking(True)
+
+    def apply_settings(self, settings: AppSettings) -> None:
+        """Applies board theme, piece style, and animation speed."""
+        self._theme = BOARD_THEMES.get(settings.board_theme, BOARD_THEMES["classic_green"])
+        _label, duration = ANIMATION_SPEEDS.get(settings.animation_speed, ANIMATION_SPEEDS["fast"])
+        self._anim_duration_ms = duration
+
+        if settings.piece_style != self._piece_style:
+            self._piece_style = settings.piece_style
+            self._renderers = {
+                sym: QSvgRenderer(QByteArray(build_piece_svg(sym, self._piece_style)))
+                for sym in ("P", "N", "B", "R", "Q", "K", "p", "n", "b", "r", "q", "k")
+            }
+        self.update()
+
+    def _on_anim_value(self, value: float) -> None:
+        self._anim_progress = float(value)
+        self.update()
+
+    def _on_anim_finished(self) -> None:
+        self._anim_from_sq = None
+        self._anim_to_sq = None
+        self._anim_piece_symbol = None
+        self._anim_progress = 1.0
+        self.update()
+
+    def start_move_animation(self, from_sq: int, to_sq: int, piece_symbol: str) -> None:
+        """Animates a piece sliding from from_sq to to_sq if animation is enabled."""
+        if self._anim_duration_ms <= 0:
+            return
+        self._anim.stop()
+        self._anim_from_sq = from_sq
+        self._anim_to_sq = to_sq
+        self._anim_piece_symbol = piece_symbol
+        self._anim_progress = 0.0
+        self._anim.setDuration(self._anim_duration_ms)
+        self._anim.start()
 
     def set_flipped(self, flipped: bool) -> None:
         self._flipped = flipped
@@ -294,19 +271,19 @@ class BoardWidget(QWidget):
                 is_light = (file_idx + rank_idx) % 2 == 1
 
                 rect = QRectF(ox + col * sq, oy + row * sq, sq, sq)
-                painter.fillRect(rect, self.LIGHT_SQUARE if is_light else self.DARK_SQUARE)
+                painter.fillRect(rect, self._theme.light_square if is_light else self._theme.dark_square)
 
                 if square in last_squares:
-                    painter.fillRect(rect, self.LAST_MOVE_COLOR)
+                    painter.fillRect(rect, self._theme.last_move_color)
                 if square in self._highlighted_squares:
                     painter.fillRect(rect, self.USER_HIGHLIGHT_COLOR)
                 if square == self._selected_square:
-                    painter.fillRect(rect, self.SELECTED_COLOR)
+                    painter.fillRect(rect, self._theme.selected_color)
                 if status.check_square == square:
                     painter.fillRect(rect, self.CHECK_COLOR)
 
                 # Rank & file labels along edges
-                label_color = self.DARK_SQUARE if is_light else self.LIGHT_SQUARE
+                label_color = self._theme.dark_square if is_light else self._theme.light_square
                 painter.setPen(label_color)
                 if col == 0:
                     painter.drawText(
@@ -339,13 +316,27 @@ class BoardWidget(QWidget):
 
         # Draw static pieces
         for square, piece in self._manager.get_board_map().items():
-            if square == self._dragging_square:
+            if square == self._dragging_square or square == self._anim_to_sq:
                 continue
             row, col = self._square_to_rc(square)
             rect = QRectF(ox + col * sq, oy + row * sq, sq, sq).adjusted(
                 sq * 0.06, sq * 0.06, -sq * 0.06, -sq * 0.06
             )
             self._renderers[piece.symbol()].render(painter, rect)
+
+        # Draw animated moving piece
+        if (
+            self._anim_from_sq is not None
+            and self._anim_to_sq is not None
+            and self._anim_piece_symbol is not None
+        ):
+            p1 = self._square_center(self._anim_from_sq, ox, oy, sq)
+            p2 = self._square_center(self._anim_to_sq, ox, oy, sq)
+            cx = p1.x() + (p2.x() - p1.x()) * self._anim_progress
+            cy = p1.y() + (p2.y() - p1.y()) * self._anim_progress
+            half = sq * 0.44
+            rect = QRectF(cx - half, cy - half, half * 2, half * 2)
+            self._renderers[self._anim_piece_symbol].render(painter, rect)
 
         # Draw dragged piece on top
         if self._dragging_square is not None and self._drag_pos is not None:
@@ -459,11 +450,11 @@ class BoardWidget(QWidget):
         self._drag_pos = None
 
         if to_sq is not None and to_sq != from_sq and to_sq in self._legal_targets:
-            self._attempt_move(from_sq, to_sq)
+            self._attempt_move(from_sq, to_sq, animate=False)
         else:
             self.update()
 
-    def _attempt_move(self, from_sq: int, to_sq: int) -> None:
+    def _attempt_move(self, from_sq: int, to_sq: int, animate: bool = True) -> None:
         promotion: Optional[int] = None
         if self._manager.is_promotion_move(from_sq, to_sq):
             is_white = self._manager.get_status().turn == "white"
@@ -480,5 +471,8 @@ class BoardWidget(QWidget):
             self.clear_selection()
             return
 
+        moved_piece = self._manager.get_piece_at(to_sq)
         self.clear_selection()
+        if animate and moved_piece is not None:
+            self.start_move_animation(from_sq, to_sq, moved_piece.symbol())
         self.board_changed.emit()
