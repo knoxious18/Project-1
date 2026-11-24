@@ -161,11 +161,13 @@ class MainWindow(QMainWindow):
     def _on_new_game(self) -> None:
         self._manager.reset()
         self._board_widget.clear_selection()
+        self._board_widget.clear_annotations()
         self._refresh_ui()
 
     def _on_undo(self) -> None:
         self._manager.undo_move()
         self._board_widget.clear_selection()
+        self._board_widget.clear_annotations()
         self._refresh_ui()
 
     def _on_flip(self) -> None:
@@ -178,6 +180,7 @@ class MainWindow(QMainWindow):
             self._show_error(str(exc))
             return
         self._board_widget.clear_selection()
+        self._board_widget.clear_annotations()
         self._refresh_ui()
 
     def _on_copy_fen(self) -> None:
@@ -192,6 +195,7 @@ class MainWindow(QMainWindow):
                 self._show_error(str(exc))
                 return
             self._board_widget.clear_selection()
+            self._board_widget.clear_annotations()
             self._refresh_ui()
 
     def _show_error(self, message: str) -> None:

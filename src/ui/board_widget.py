@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import math
 from typing import Optional
 
 import chess
 from PySide6.QtCore import QByteArray, QPointF, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QFont, QMouseEvent, QPainter, QPen
+from PySide6.QtGui import QColor, QFont, QMouseEvent, QPainter, QPen, QPolygonF
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
@@ -96,6 +97,9 @@ class BoardWidget(QWidget):
     LAST_MOVE_COLOR = QColor(246, 246, 105, 120)
     CHECK_COLOR = QColor(235, 64, 52, 180)
     LEGAL_DOT_COLOR = QColor(20, 20, 20, 65)
+    USER_HIGHLIGHT_COLOR = QColor(235, 97, 80, 165)
+    ARROW_COLOR = QColor(255, 170, 0, 185)
+    ARROW_PREVIEW_COLOR = QColor(255, 170, 0, 120)
 
     def __init__(self, manager: BoardManager, parent=None) -> None:
         super().__init__(parent)
@@ -105,6 +109,10 @@ class BoardWidget(QWidget):
         self._legal_targets: set[int] = set()
         self._dragging_square: Optional[int] = None
         self._drag_pos: Optional[QPointF] = None
+        self._highlighted_squares: set[int] = set()
+        self._arrows: list[tuple[int, int]] = []
+        self._right_drag_start: Optional[int] = None
+        self._right_drag_current: Optional[int] = None
 
         self._renderers: dict[str, QSvgRenderer] = {
             sym: QSvgRenderer(QByteArray(_build_piece_svg(sym)))
@@ -128,6 +136,64 @@ class BoardWidget(QWidget):
         self._dragging_square = None
         self._drag_pos = None
         self.update()
+
+    def clear_annotations(self) -> None:
+        self._highlighted_squares.clear()
+        self._arrows.clear()
+        self._right_drag_start = None
+        self._right_drag_current = None
+        self.update()
+
+    def _square_center(self, square: int, ox: float, oy: float, sq: float) -> QPointF:
+        row, col = self._square_to_rc(square)
+        return QPointF(ox + (col + 0.5) * sq, oy + (row + 0.5) * sq)
+
+    def _draw_arrow(
+        self,
+        painter: QPainter,
+        from_sq: int,
+        to_sq: int,
+        ox: float,
+        oy: float,
+        sq: float,
+        color: QColor,
+    ) -> None:
+        p1 = self._square_center(from_sq, ox, oy, sq)
+        p2 = self._square_center(to_sq, ox, oy, sq)
+        dx = p2.x() - p1.x()
+        dy = p2.y() - p1.y()
+        dist = math.hypot(dx, dy)
+        if dist < 1e-3:
+            return
+
+        ux, uy = dx / dist, dy / dist
+        px, py = -uy, ux
+
+        start = QPointF(p1.x() + ux * (sq * 0.18), p1.y() + uy * (sq * 0.18))
+        tip = QPointF(p2.x() - ux * (sq * 0.08), p2.y() - uy * (sq * 0.08))
+        usable_len = math.hypot(tip.x() - start.x(), tip.y() - start.y())
+        if usable_len < 1e-3:
+            return
+
+        head_len = min(sq * 0.36, usable_len * 0.5)
+        head_hw = sq * 0.22
+        shaft_hw = sq * 0.085
+        neck = QPointF(tip.x() - ux * head_len, tip.y() - uy * head_len)
+
+        poly = QPolygonF(
+            [
+                QPointF(start.x() + px * shaft_hw, start.y() + py * shaft_hw),
+                QPointF(neck.x() + px * shaft_hw, neck.y() + py * shaft_hw),
+                QPointF(neck.x() + px * head_hw, neck.y() + py * head_hw),
+                tip,
+                QPointF(neck.x() - px * head_hw, neck.y() - py * head_hw),
+                QPointF(neck.x() - px * shaft_hw, neck.y() - py * shaft_hw),
+                QPointF(start.x() - px * shaft_hw, start.y() - py * shaft_hw),
+            ]
+        )
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(color)
+        painter.drawPolygon(poly)
 
     def _board_geometry(self) -> tuple[float, float, float]:
         """Returns (origin_x, origin_y, square_size) for centered square board."""
@@ -188,6 +254,8 @@ class BoardWidget(QWidget):
 
                 if square in last_squares:
                     painter.fillRect(rect, self.LAST_MOVE_COLOR)
+                if square in self._highlighted_squares:
+                    painter.fillRect(rect, self.USER_HIGHLIGHT_COLOR)
                 if square == self._selected_square:
                     painter.fillRect(rect, self.SELECTED_COLOR)
                 if status.check_square == square:
@@ -248,9 +316,37 @@ class BoardWidget(QWidget):
                 )
                 self._renderers[piece.symbol()].render(painter, rect)
 
+        # Draw user-drawn arrows and active right-drag preview
+        for from_sq, to_sq in self._arrows:
+            self._draw_arrow(painter, from_sq, to_sq, ox, oy, sq, self.ARROW_COLOR)
+        if (
+            self._right_drag_start is not None
+            and self._right_drag_current is not None
+            and self._right_drag_start != self._right_drag_current
+        ):
+            self._draw_arrow(
+                painter,
+                self._right_drag_start,
+                self._right_drag_current,
+                ox,
+                oy,
+                sq,
+                self.ARROW_PREVIEW_COLOR,
+            )
+
     def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.RightButton:
+            sq = self._pos_to_square(event.position())
+            self._right_drag_start = sq
+            self._right_drag_current = sq
+            return
+
         if event.button() != Qt.MouseButton.LeftButton:
             return
+
+        if self._highlighted_squares or self._arrows:
+            self.clear_annotations()
+
         sq = self._pos_to_square(event.position())
         if sq is None:
             self.clear_selection()
@@ -282,11 +378,35 @@ class BoardWidget(QWidget):
             self.clear_selection()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        if self._right_drag_start is not None:
+            self._right_drag_current = self._pos_to_square(event.position())
+            self.update()
         if self._dragging_square is not None:
             self._drag_pos = event.position()
             self.update()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.RightButton and self._right_drag_start is not None:
+            start_sq = self._right_drag_start
+            end_sq = self._pos_to_square(event.position())
+            self._right_drag_start = None
+            self._right_drag_current = None
+
+            if end_sq is not None:
+                if end_sq == start_sq:
+                    if start_sq in self._highlighted_squares:
+                        self._highlighted_squares.remove(start_sq)
+                    else:
+                        self._highlighted_squares.add(start_sq)
+                else:
+                    arrow = (start_sq, end_sq)
+                    if arrow in self._arrows:
+                        self._arrows.remove(arrow)
+                    else:
+                        self._arrows.append(arrow)
+            self.update()
+            return
+
         if event.button() != Qt.MouseButton.LeftButton or self._dragging_square is None:
             return
         from_sq = self._dragging_square
