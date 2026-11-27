@@ -11,12 +11,16 @@ DEFAULT_SETTINGS_PATH = Path("settings.json")
 
 @dataclass
 class AppSettings:
-    """User-configurable appearance and animation preferences."""
+    """User-configurable appearance, animation, and engine preferences."""
 
     ui_mode: str = "light"
     board_theme: str = "classic_green"
     piece_style: str = "classic"
     animation_speed: str = "fast"
+    engine_path: str = "stockfish/stockfish-windows-x86-64-universal.exe"
+    engine_threads: int = 0
+    engine_hash_mb: int = 64
+    ai_move_diversity: bool = True
 
 
 def load_settings(path: Path = DEFAULT_SETTINGS_PATH) -> AppSettings:
@@ -31,6 +35,10 @@ def load_settings(path: Path = DEFAULT_SETTINGS_PATH) -> AppSettings:
             board_theme=str(data.get("board_theme", defaults.board_theme)),
             piece_style=str(data.get("piece_style", defaults.piece_style)),
             animation_speed=str(data.get("animation_speed", defaults.animation_speed)),
+            engine_path=str(data.get("engine_path", defaults.engine_path)),
+            engine_threads=int(data.get("engine_threads", defaults.engine_threads)),
+            engine_hash_mb=int(data.get("engine_hash_mb", defaults.engine_hash_mb)),
+            ai_move_diversity=bool(data.get("ai_move_diversity", defaults.ai_move_diversity)),
         )
     except (OSError, ValueError, TypeError):
         return AppSettings()

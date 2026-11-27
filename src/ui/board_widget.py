@@ -40,6 +40,7 @@ class BoardWidget(QWidget):
         self._arrows: list[tuple[int, int]] = []
         self._right_drag_start: Optional[int] = None
         self._right_drag_current: Optional[int] = None
+        self._allowed_colors: Optional[set[chess.Color]] = None
 
         self._theme: BoardTheme = BOARD_THEMES["classic_green"]
         self._piece_style: str = ""
@@ -106,6 +107,23 @@ class BoardWidget(QWidget):
 
     def is_flipped(self) -> bool:
         return self._flipped
+
+    def set_allowed_colors(self, colors: Optional[set[chess.Color]]) -> None:
+        """Restricts which side(s) the user can move (None = any, set() = locked)."""
+        self._allowed_colors = colors
+        if colors is not None:
+            self.clear_selection()
+
+    def play_uci_move(self, uci: str, animate: bool = True) -> None:
+        """Executes an external UCI move (e.g. from AI) and animates it."""
+        move = chess.Move.from_uci(uci)
+        self._manager.make_uci_move(uci)
+        moved_piece = self._manager.get_piece_at(move.to_square)
+        self.clear_selection()
+        self.clear_annotations()
+        if animate and moved_piece is not None:
+            self.start_move_animation(move.from_square, move.to_square, moved_piece.symbol())
+        self.board_changed.emit()
 
     def clear_selection(self) -> None:
         self._selected_square = None
@@ -397,8 +415,12 @@ class BoardWidget(QWidget):
 
         piece = self._manager.get_piece_at(sq)
         status = self._manager.get_status()
+        color_allowed = self._allowed_colors is None or (
+            piece is not None and piece.color in self._allowed_colors
+        )
         is_turn_piece = (
             piece is not None
+            and color_allowed
             and not status.is_game_over
             and (
                 (piece.color == chess.WHITE and status.turn == "white")

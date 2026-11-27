@@ -28,4 +28,5 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 engines/
+stockfish/*.exe
 settings.json
