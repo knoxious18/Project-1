@@ -1,4 +1,4 @@
-# Phần mềm: REALCHESS / ChessMind
+# Phần mềm: REALCHESS
 Ý tưởng: làm 1 phần mềm chơi cờ vua
 Điểm hay: giao diện tốt, đồ hoạ đẹp, ... Chưa nghĩ ra thêm(?)
 Điểm hay hơn: chạy được offline và online; tích hợp AI Stockfish

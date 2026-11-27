@@ -51,3 +51,19 @@ Khác với một số nền tảng chỉ hiển thị mũi tên sau khi ngườ
 - Sử dụng `QVariantAnimation` (nội suy từ `0.0` đến `1.0` với đường cong giảm tốc `QEasingCurve.Type.OutCubic`) trong `BoardWidget` với 4 mức tốc độ: *Tắt (0 ms)*, *Nhanh (120 ms)*, *Trung bình (220 ms)*, *Chậm (380 ms)*.
 - Khi hiệu ứng đang chạy, `paintEvent()` bỏ qua việc vẽ quân tĩnh tại ô đích (`_anim_to_sq`) và vẽ quân tại tọa độ nội suy giữa tâm ô nguồn và tâm ô đích.
 - Hiệu ứng chỉ kích hoạt với thao tác *click-to-move* (và sẵn sàng tái sử dụng cho nước đi của AI/PGN sau này); thao tác *kéo-thả* đặt quân trực tiếp tại vị trí thả chuột để đảm bảo phản hồi tức thì.
+
+---
+
+## 5. Hủy thao tác giữ quân bằng chuột phải
+
+- Trong `BoardWidget.mousePressEvent()`, nhánh xử lý `Qt.MouseButton.RightButton` kiểm tra `self._dragging_square is not None` trước khi khởi tạo thao tác chú thích.
+- Nếu người dùng đang kéo giữ một quân cờ bằng chuột trái và nhấn chuột phải, phương thức gọi `self.clear_selection()` để trả quân về ô xuất phát, hủy trạng thái chọn/kéo và thoát sớm mà không kích hoạt highlight ô hay vẽ mũi tên.
+
+---
+
+## 6. Màn hình Intro và điều hướng chế độ chơi (`QStackedWidget`)
+
+- **Cấu trúc điều hướng (`src/ui/main_window.py`):** `MainWindow` sử dụng `QStackedWidget` làm widget trung tâm gồm hai trang:
+  - Trang `0`: `IntroWidget` (`src/ui/intro_widget.py`) hiển thị khi khởi động, cung cấp ba lựa chọn chế độ (*Play with Human*, *Play with AI*, *Analysis*) và nút mở hộp thoại *Cài đặt (⚙)*.
+  - Trang `1`: Giao diện bàn cờ và bảng điều khiển, bổ sung nút **← Trang chủ** để quay lại màn hình Intro khi cần.
+- Chọn *Play with Human* chuyển trực tiếp sang trang bàn cờ; *Play with AI* và *Analysis* hiện giữ vai trò điểm chờ cho các mốc phát triển tiếp theo.

@@ -1,4 +1,4 @@
-# RealChess (ChessMind)
+# RealChess
 
 Phần mềm chơi và phân tích cờ vua desktop viết bằng Python, tách biệt rõ ràng giữa tầng logic (`src/core`) và tầng giao diện (`src/ui`) để dễ dàng mở rộng sang AI Stockfish, phân tích ván đấu, đồ thị khai cuộc và chế độ online sau này.
 
