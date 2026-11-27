@@ -1,9 +1,9 @@
-"""Intro / home screen widget for choosing game mode (Light Theme)."""
+"""Intro / home screen widget for choosing game mode (Light & Dark Theme)."""
 
 from __future__ import annotations
 
 from PySide6.QtCore import QByteArray, QEvent, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QIcon, QKeyEvent, QPainter, QPixmap
+from PySide6.QtGui import QColor, QIcon, QKeyEvent, QMouseEvent, QPainter, QPixmap, QShowEvent
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QGraphicsDropShadowEffect,
@@ -18,28 +18,42 @@ from PySide6.QtWidgets import (
 # ---------------------------------------------------------------------------
 # Theme Constants (Chỉnh nhanh màu sắc, kích thước thẻ, độ bo góc tại đây)
 # ---------------------------------------------------------------------------
-BG_COLOR = "#F7F8FA"
-CARD_BG = "#FFFFFF"
-CARD_PRESSED_BG = "#F1F3F5"
-BORDER_COLOR = "#E5E7EB"
-TEXT_PRIMARY = "#111827"
-TEXT_SECONDARY = "#6B7280"
+LIGHT_PALETTE = {
+    "bg": "#F7F8FA",
+    "card_bg": "#FFFFFF",
+    "card_pressed": "#F1F3F5",
+    "border": "#E5E7EB",
+    "text_primary": "#111827",
+    "text_secondary": "#6B7280",
+}
+
+DARK_PALETTE = {
+    "bg": "#16191D",
+    "card_bg": "#1E2329",
+    "card_pressed": "#262C34",
+    "border": "#2D333B",
+    "text_primary": "#F3F4F6",
+    "text_secondary": "#9CA3AF",
+}
+
 ACCENT_COLOR = "#5B8C3A"
 ACCENT_HOVER_COLOR = "#4C7A2E"
 
 CARD_WIDTH = 200
 CARD_HEIGHT = 220
 CARD_RADIUS = 14
-SMALL_BTN_RADIUS = 10
 
-INTRO_QSS = f"""
+
+def _build_intro_qss(mode: str) -> str:
+    p = DARK_PALETTE if mode == "dark" else LIGHT_PALETTE
+    return f"""
 #IntroWidget {{
-    background-color: {BG_COLOR};
+    background-color: {p["bg"]};
     font-family: "Segoe UI", "Inter", sans-serif;
 }}
 
 #AppTitle {{
-    color: {TEXT_PRIMARY};
+    color: {p["text_primary"]};
     font-size: 40px;
     font-weight: 700;
     letter-spacing: -0.5px;
@@ -47,23 +61,23 @@ INTRO_QSS = f"""
 }}
 
 #AppSubtitle {{
-    color: {TEXT_SECONDARY};
+    color: {p["text_secondary"]};
     font-size: 14px;
     font-weight: 400;
     background: transparent;
 }}
 
 #SettingsButton {{
-    background-color: {CARD_BG};
-    border: 1px solid {BORDER_COLOR};
+    background-color: {p["card_bg"]};
+    border: 1px solid {p["border"]};
     border-radius: 20px;
 }}
 #SettingsButton:hover {{
     border: 1.5px solid {ACCENT_COLOR};
-    background-color: {CARD_BG};
+    background-color: {p["card_bg"]};
 }}
 #SettingsButton:pressed {{
-    background-color: {CARD_PRESSED_BG};
+    background-color: {p["card_pressed"]};
 }}
 #SettingsButton:focus {{
     border: 2px solid {ACCENT_COLOR};
@@ -71,8 +85,8 @@ INTRO_QSS = f"""
 }}
 
 #ModeCard {{
-    background-color: {CARD_BG};
-    border: 1px solid {BORDER_COLOR};
+    background-color: {p["card_bg"]};
+    border: 1px solid {p["border"]};
     border-radius: {CARD_RADIUS}px;
     text-align: center;
 }}
@@ -80,7 +94,7 @@ INTRO_QSS = f"""
     border: 1.5px solid {ACCENT_COLOR};
 }}
 #ModeCard:pressed {{
-    background-color: {CARD_PRESSED_BG};
+    background-color: {p["card_pressed"]};
     border: 1.5px solid {ACCENT_HOVER_COLOR};
 }}
 #ModeCard:focus {{
@@ -89,14 +103,14 @@ INTRO_QSS = f"""
 }}
 
 #CardTitle {{
-    color: {TEXT_PRIMARY};
+    color: {p["text_primary"]};
     font-size: 16px;
     font-weight: 700;
     background: transparent;
 }}
 
 #CardDesc {{
-    color: {TEXT_SECONDARY};
+    color: {p["text_secondary"]};
     font-size: 12.5px;
     font-weight: 400;
     background: transparent;
@@ -115,7 +129,7 @@ def _svg_to_pixmap(svg_markup: str, size: int) -> QPixmap:
     return pixmap
 
 
-def _gear_icon_svg(color: str = TEXT_PRIMARY) -> str:
+def _gear_icon_svg(color: str) -> str:
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '
         f'stroke="{color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
@@ -190,14 +204,14 @@ class ModeCard(QPushButton):
         super().__init__(parent)
         self.setObjectName("ModeCard")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        # TabFocus prevents mouse clicks from leaving a persistent :focus border
+        self.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         self.setToolTip(tooltip)
         self.setMinimumSize(180, CARD_HEIGHT)
         self.setMaximumSize(240, 250)
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.resize(CARD_WIDTH, CARD_HEIGHT)
 
-        # Subtle drop shadow; intensifies on hover
         self._shadow = QGraphicsDropShadowEffect(self)
         self._shadow.setBlurRadius(24)
         self._shadow.setOffset(0, 4)
@@ -241,6 +255,10 @@ class ModeCard(QPushButton):
         self._shadow.setOffset(0, 4)
         super().leaveEvent(event)
 
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        super().mouseReleaseEvent(event)
+        self.clearFocus()
+
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             self.click()
@@ -249,18 +267,17 @@ class ModeCard(QPushButton):
 
 
 class IntroWidget(QWidget):
-    """Minimalist light-theme landing screen for RealChess."""
+    """Minimalist light/dark-theme landing screen for RealChess."""
 
     play_human_clicked = Signal()
     play_ai_clicked = Signal()
     analysis_clicked = Signal()
     settings_clicked = Signal()
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, ui_mode: str = "light", parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("IntroWidget")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet(INTRO_QSS)
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(32, 24, 32, 32)
@@ -269,16 +286,15 @@ class IntroWidget(QWidget):
         # Top-right circular settings button
         top_bar = QHBoxLayout()
         top_bar.addStretch()
-        settings_btn = QPushButton()
-        settings_btn.setObjectName("SettingsButton")
-        settings_btn.setFixedSize(40, 40)
-        settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        settings_btn.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        settings_btn.setToolTip("Cài đặt giao diện và animation")
-        settings_btn.setIcon(QIcon(_svg_to_pixmap(_gear_icon_svg(), 20)))
-        settings_btn.setIconSize(QSize(20, 20))
-        settings_btn.clicked.connect(self.settings_clicked.emit)
-        top_bar.addWidget(settings_btn)
+        self._settings_btn = QPushButton()
+        self._settings_btn.setObjectName("SettingsButton")
+        self._settings_btn.setFixedSize(40, 40)
+        self._settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._settings_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+        self._settings_btn.setToolTip("Cài đặt giao diện và animation")
+        self._settings_btn.setIconSize(QSize(20, 20))
+        self._settings_btn.clicked.connect(self.settings_clicked.emit)
+        top_bar.addWidget(self._settings_btn)
         outer.addLayout(top_bar)
 
         outer.addStretch(2)
@@ -327,9 +343,24 @@ class IntroWidget(QWidget):
         )
         analysis_card.clicked.connect(self.analysis_clicked.emit)
 
-        for card in (human_card, ai_card, analysis_card):
+        self._cards = (human_card, ai_card, analysis_card)
+        for card in self._cards:
             cards_row.addWidget(card)
 
         cards_row.addStretch(1)
         outer.addLayout(cards_row)
         outer.addStretch(3)
+
+        self.apply_ui_mode(ui_mode)
+
+    def apply_ui_mode(self, mode: str) -> None:
+        """Applies light or dark color palette to the intro screen."""
+        palette = DARK_PALETTE if mode == "dark" else LIGHT_PALETTE
+        self.setStyleSheet(_build_intro_qss(mode))
+        self._settings_btn.setIcon(QIcon(_svg_to_pixmap(_gear_icon_svg(palette["text_primary"]), 20)))
+
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        for card in self._cards:
+            card.clearFocus()
+        self._settings_btn.clearFocus()

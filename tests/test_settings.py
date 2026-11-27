@@ -10,6 +10,7 @@ def test_settings_roundtrip_and_fallback(tmp_path: Path) -> None:
     assert load_settings(cfg) == AppSettings()
 
     custom = AppSettings(
+        ui_mode="dark",
         board_theme="warm_wood",
         piece_style="minimal",
         animation_speed="slow",

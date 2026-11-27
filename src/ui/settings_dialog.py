@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.core import AppSettings
-from src.ui.themes import ANIMATION_SPEEDS, BOARD_THEMES, PIECE_STYLES
+from src.ui.themes import ANIMATION_SPEEDS, BOARD_THEMES, PIECE_STYLES, UI_MODES
 
 
 class SettingsDialog(QDialog):
@@ -28,6 +28,7 @@ class SettingsDialog(QDialog):
         self.setMinimumWidth(360)
 
         self._initial = AppSettings(
+            ui_mode=current.ui_mode,
             board_theme=current.board_theme,
             piece_style=current.piece_style,
             animation_speed=current.animation_speed,
@@ -36,6 +37,13 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(self)
         form = QFormLayout()
         form.setSpacing(12)
+
+        self._mode_combo = QComboBox()
+        for mode_id, label in UI_MODES.items():
+            self._mode_combo.addItem(label, mode_id)
+        self._select_by_data(self._mode_combo, current.ui_mode)
+        self._mode_combo.currentIndexChanged.connect(self._emit_live)
+        form.addRow("Chế độ giao diện:", self._mode_combo)
 
         self._theme_combo = QComboBox()
         for theme_id, theme in BOARD_THEMES.items():
@@ -79,6 +87,7 @@ class SettingsDialog(QDialog):
 
     def current_settings(self) -> AppSettings:
         return AppSettings(
+            ui_mode=self._mode_combo.currentData(),
             board_theme=self._theme_combo.currentData(),
             piece_style=self._piece_combo.currentData(),
             animation_speed=self._anim_combo.currentData(),

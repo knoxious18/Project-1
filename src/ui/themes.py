@@ -54,6 +54,11 @@ BOARD_THEMES: dict[str, BoardTheme] = {
     ),
 }
 
+UI_MODES: dict[str, str] = {
+    "light": "Sáng (Light Mode)",
+    "dark": "Tối (Dark Mode)",
+}
+
 PIECE_STYLES: dict[str, str] = {
     "classic": "Cổ điển (Trắng - Đen)",
     "minimal": "Tối giản (Hình học phẳng)",

@@ -72,7 +72,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._stack)
 
         # Page 0: Intro / Mode selection
-        self._intro_widget = IntroWidget()
+        self._intro_widget = IntroWidget(ui_mode=self._settings.ui_mode)
         self._intro_widget.play_human_clicked.connect(self._on_play_human)
         self._intro_widget.play_ai_clicked.connect(self._on_play_ai)
         self._intro_widget.analysis_clicked.connect(self._on_analysis)
@@ -80,11 +80,12 @@ class MainWindow(QMainWindow):
         self._stack.addWidget(self._intro_widget)
 
         # Page 1: Chess board workspace
-        game_page = QWidget()
-        main_layout = QHBoxLayout(game_page)
+        self._game_page = QWidget()
+        self._game_page.setObjectName("GamePage")
+        main_layout = QHBoxLayout(self._game_page)
         main_layout.setContentsMargins(14, 14, 14, 14)
         main_layout.setSpacing(16)
-        self._stack.addWidget(game_page)
+        self._stack.addWidget(self._game_page)
 
         # Left: Chess board
         self._board_widget = BoardWidget(self._manager, settings=self._settings)
@@ -151,6 +152,7 @@ class MainWindow(QMainWindow):
         pgn_btn.clicked.connect(self._on_pgn_dialog)
         side_panel.addWidget(pgn_btn)
 
+        self._apply_ui_mode(self._settings.ui_mode)
         self._refresh_ui()
 
     def _refresh_ui(self) -> None:
@@ -218,11 +220,38 @@ class MainWindow(QMainWindow):
 
     def _on_settings(self) -> None:
         dialog = SettingsDialog(self._settings, parent=self)
-        dialog.settings_applied.connect(self._board_widget.apply_settings)
+        dialog.settings_applied.connect(self._apply_all_settings)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self._settings = dialog.current_settings()
-            self._board_widget.apply_settings(self._settings)
+            self._apply_all_settings(self._settings)
             save_settings(self._settings)
+
+    def _apply_all_settings(self, settings: AppSettings) -> None:
+        self._board_widget.apply_settings(settings)
+        self._intro_widget.apply_ui_mode(settings.ui_mode)
+        self._apply_ui_mode(settings.ui_mode)
+
+    def _apply_ui_mode(self, mode: str) -> None:
+        if mode == "dark":
+            self.setStyleSheet(
+                "QMainWindow, #GamePage { background-color: #16191D; color: #F3F4F6; }"
+                "QLabel { color: #F3F4F6; }"
+                "QPushButton { background-color: #1E2329; color: #F3F4F6; "
+                "border: 1px solid #2D333B; border-radius: 6px; padding: 4px 10px; }"
+                "QPushButton:hover { border-color: #5B8C3A; }"
+                "QPlainTextEdit, QLineEdit { background-color: #1E2329; color: #F3F4F6; "
+                "border: 1px solid #2D333B; border-radius: 6px; padding: 4px; }"
+            )
+        else:
+            self.setStyleSheet(
+                "QMainWindow, #GamePage { background-color: #F7F8FA; color: #111827; }"
+                "QLabel { color: #111827; }"
+                "QPushButton { background-color: #FFFFFF; color: #111827; "
+                "border: 1px solid #E5E7EB; border-radius: 6px; padding: 4px 10px; }"
+                "QPushButton:hover { border-color: #5B8C3A; }"
+                "QPlainTextEdit, QLineEdit { background-color: #FFFFFF; color: #111827; "
+                "border: 1px solid #E5E7EB; border-radius: 6px; padding: 4px; }"
+            )
 
     def _on_load_fen(self) -> None:
         try:
