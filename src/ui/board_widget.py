@@ -371,6 +371,9 @@ class BoardWidget(QWidget):
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.RightButton:
+            if self._dragging_square is not None:
+                self.clear_selection()
+                return
             sq = self._pos_to_square(event.position())
             self._right_drag_start = sq
             self._right_drag_current = sq

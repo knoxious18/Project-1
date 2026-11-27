@@ -13,12 +13,14 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from src.core import AppSettings, BoardManager, load_settings, save_settings
 from src.ui.board_widget import BoardWidget
+from src.ui.intro_widget import IntroWidget
 from src.ui.settings_dialog import SettingsDialog
 
 
@@ -66,11 +68,23 @@ class MainWindow(QMainWindow):
         self._manager = BoardManager()
         self._settings = load_settings()
 
-        root = QWidget()
-        self.setCentralWidget(root)
-        main_layout = QHBoxLayout(root)
+        self._stack = QStackedWidget()
+        self.setCentralWidget(self._stack)
+
+        # Page 0: Intro / Mode selection
+        self._intro_widget = IntroWidget()
+        self._intro_widget.play_human_clicked.connect(self._on_play_human)
+        self._intro_widget.play_ai_clicked.connect(self._on_play_ai)
+        self._intro_widget.analysis_clicked.connect(self._on_analysis)
+        self._intro_widget.settings_clicked.connect(self._on_settings)
+        self._stack.addWidget(self._intro_widget)
+
+        # Page 1: Chess board workspace
+        game_page = QWidget()
+        main_layout = QHBoxLayout(game_page)
         main_layout.setContentsMargins(14, 14, 14, 14)
         main_layout.setSpacing(16)
+        self._stack.addWidget(game_page)
 
         # Left: Chess board
         self._board_widget = BoardWidget(self._manager, settings=self._settings)
@@ -93,6 +107,8 @@ class MainWindow(QMainWindow):
 
         # Action buttons
         actions_row = QHBoxLayout()
+        home_btn = QPushButton("← Trang chủ")
+        home_btn.clicked.connect(self._on_back_to_intro)
         new_btn = QPushButton("Ván mới")
         new_btn.clicked.connect(self._on_new_game)
         undo_btn = QPushButton("Đi lại")
@@ -104,7 +120,7 @@ class MainWindow(QMainWindow):
         settings_btn.setFixedWidth(40)
         settings_btn.setStyleSheet("font-size: 16px;")
         settings_btn.clicked.connect(self._on_settings)
-        for btn in (new_btn, undo_btn, flip_btn, settings_btn):
+        for btn in (home_btn, new_btn, undo_btn, flip_btn, settings_btn):
             btn.setMinimumHeight(34)
             actions_row.addWidget(btn)
         side_panel.addLayout(actions_row)
@@ -164,6 +180,26 @@ class MainWindow(QMainWindow):
                 i += 1
             lines.append(f"{white_rec.move_number}. {white_rec.san}{black_part}")
         return "\n".join(lines)
+
+    def _on_play_human(self) -> None:
+        self._stack.setCurrentIndex(1)
+
+    def _on_play_ai(self) -> None:
+        QMessageBox.information(
+            self,
+            "Chơi với AI",
+            "Tính năng đấu với Stockfish AI sẽ được triển khai ở mốc tiếp theo.",
+        )
+
+    def _on_analysis(self) -> None:
+        QMessageBox.information(
+            self,
+            "Phân tích ván cờ",
+            "Tính năng Phân tích ván cờ sẽ được triển khai ở các mốc tiếp theo.",
+        )
+
+    def _on_back_to_intro(self) -> None:
+        self._stack.setCurrentIndex(0)
 
     def _on_new_game(self) -> None:
         self._manager.reset()
