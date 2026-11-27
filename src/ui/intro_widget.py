@@ -28,9 +28,15 @@ class IntroWidget(QWidget):
 
         top_bar = QHBoxLayout()
         top_bar.addStretch()
-        settings_btn = QPushButton("⚙ Cài đặt")
-        settings_btn.setMinimumHeight(34)
+        settings_btn = QPushButton("⚙")
+        settings_btn.setToolTip("Cài đặt giao diện")
+        settings_btn.setFixedSize(36, 36)
         settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        settings_btn.setStyleSheet(
+            "QPushButton { background-color: #FFFFFF; color: #111827; "
+            "border: 1px solid #D1D5DB; border-radius: 0px; font-size: 16px; }"
+            "QPushButton:hover { background-color: #F3F4F6; border-color: #111827; }"
+        )
         settings_btn.clicked.connect(self.settings_clicked.emit)
         top_bar.addWidget(settings_btn)
         outer.addLayout(top_bar)
@@ -39,61 +45,41 @@ class IntroWidget(QWidget):
 
         title = QLabel("RealChess")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("font-size: 40px; font-weight: 800; letter-spacing: 1px;")
+        title.setStyleSheet("font-size: 36px; font-weight: 800; margin-bottom: 18px;")
         outer.addWidget(title)
 
-        subtitle = QLabel("Chọn chế độ để bắt đầu")
-        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        subtitle.setStyleSheet("font-size: 15px; color: #94A3B8; margin-bottom: 18px;")
-        outer.addWidget(subtitle)
-
-        cards_row = QHBoxLayout()
-        cards_row.setSpacing(18)
-        cards_row.addStretch(1)
+        buttons_col = QVBoxLayout()
+        buttons_col.setSpacing(12)
+        buttons_col.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
         modes = [
-            (
-                "Play with Human",
-                "Chơi đối kháng 2 người trên cùng máy",
-                "#769656",
-                self.play_human_clicked.emit,
-            ),
-            (
-                "Play with AI",
-                "Đấu với máy Stockfish (Sắp ra mắt)",
-                "#3B82F6",
-                self.play_ai_clicked.emit,
-            ),
-            (
-                "Analysis",
-                "Phân tích ván đấu & đánh giá nước đi (Sắp ra mắt)",
-                "#8B5CF6",
-                self.analysis_clicked.emit,
-            ),
+            ("Play with\nHuman", self.play_human_clicked.emit),
+            ("Play with\nAI", self.play_ai_clicked.emit),
+            ("Analysis", self.analysis_clicked.emit),
         ]
 
-        for heading, desc, accent, handler in modes:
-            btn = QPushButton(f"{heading}\n\n{desc}")
-            btn.setFixedSize(230, 150)
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setStyleSheet(
-                f"QPushButton {{"
-                f"  background-color: #1E242B;"
-                f"  color: #F8FAFC;"
-                f"  border: 2px solid {accent};"
-                f"  border-radius: 12px;"
-                f"  font-size: 15px;"
-                f"  font-weight: 700;"
-                f"  padding: 14px;"
-                f"}}"
-                f"QPushButton:hover {{"
-                f"  background-color: {accent};"
-                f"  color: #FFFFFF;"
-                f"}}"
-            )
-            btn.clicked.connect(handler)
-            cards_row.addWidget(btn)
+        button_style = (
+            "QPushButton {"
+            "  background-color: #FFFFFF;"
+            "  color: #111827;"
+            "  border: 1px solid #D1D5DB;"
+            "  border-radius: 0px;"
+            "  font-size: 15px;"
+            "  font-weight: 700;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: #F3F4F6;"
+            "  border: 1px solid #111827;"
+            "}"
+        )
 
-        cards_row.addStretch(1)
-        outer.addLayout(cards_row)
+        for label, handler in modes:
+            btn = QPushButton(label)
+            btn.setFixedSize(136, 136)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setStyleSheet(button_style)
+            btn.clicked.connect(handler)
+            buttons_col.addWidget(btn)
+
+        outer.addLayout(buttons_col)
         outer.addStretch(2)
